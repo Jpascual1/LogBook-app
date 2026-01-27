@@ -1,0 +1,119 @@
+import express from "express";
+import db from "../db/connection.js"
+import { ObjectId } from "mongodb";
+
+
+const router = express.Router();
+
+router.get("/", async (req, res) => {
+    try {
+        const { workout, date } = req.query;
+        const query = {};
+
+        if (workout) query.workout = workout;
+        if (date) query.date = new Date(date);
+
+        const collection = db.collection("lifts");
+        const results = await collection.find(query).toArray();
+
+        res.status(200).json(results);
+    } catch(err) {
+        console.error(err);
+        res.status(500).send("Error fetching lifts");
+    }
+});
+
+router.get("/:id", async (req, res) => {
+    try {
+        let collection = db.collection("lifts");
+        let query = { _id: new ObjectId(req.params.id) };
+        let result = await collection.findOne(query);
+
+        if(!result) {
+            return res.status(404).send("Not Found");
+        }
+
+        res.status(200).json(result);
+    } catch(err) {
+        console.error(err);
+        res.status(500).send("Invalid ID")
+    }
+});
+
+router.post("/", async (req, res) => {
+    try {
+        let { name, weight, reps, sets, date } = req.body;
+
+        if (!name || !weight || !reps || !sets || !date) {
+            res.status(500).send("Missing required fields")
+        }
+
+        let newLift = {
+            name,
+            weight: Number(weight),
+            reps: Number(reps),
+            sets: Number(sets),
+            date: date ? new Date(date) : new Date(),
+        };
+
+        let collection = db.collection("lifts");
+        let result = await collection.insertOne(newLift);
+
+        res.status(201).json(result);
+    } catch(err) {
+        console.error(err);
+        res.status(500).send("Error adding lift");
+    }
+});
+
+router.patch("/:id", async (req, res) => {
+    try {
+        let query = { _id: new ObjectId(req.params.id) };
+
+        let updates = {
+            $set: {}
+        };
+
+        if (req.body.name) updates.$set.name = req.body.name;
+        if (req.body.weight) updates.$set.weight = Number(req.body.weight);
+        if (req.body.reps) updates.$set.reps = Number(req.body.reps);
+        if (req.body.sets) updates.$set.sets = Number(req.body.sets);
+        if (req.body.date) updates.$set.date = new Date(req.body.date);
+
+        if(Object.keys(update.$set).length === 0) {
+            return res.status(400).send("No fields provided");
+        }
+
+        let collection = db.collection("lifts");
+        let result = await collection.updateOne(query, updates);
+
+        if(result.matchedCount === 0) {
+            return res.status(404).send("Lift not found");
+        }
+
+        res.status(201).json(result);
+    } catch(err) {
+        console.error(err);
+        res.status(500).send("Error updating lift");
+    }
+});
+
+router.delete("/:id", async (req, res) => {
+    try {
+        let query = { _id: new ObjectId(req.params.id) };
+
+        let collection = db.collection("lifts");
+        let result = await collection.deleteOne(query);
+
+        if(result.deletedCount === 0) {
+            return res.status(404).send("Lift not found");
+        }
+
+        res.status(201).json(result);
+    } catch(err) {
+        console.error(err);
+        res.status(500).send("Error deleting lift")
+    }
+});
+
+export default router;
