@@ -54,6 +54,34 @@ function App() {
     setSelectedWorkout(day.workout ?? null);
   }
 
+  const logWorkout = async (
+    name: string,
+    currentWeight: number,
+    sets: number,
+    currentReps: number
+  ) => {
+    try {
+      const response = await fetch("http://localhost:5050/records", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          weight: currentWeight,
+          reps: currentReps,
+          sets,
+          date: new Date().toISOString(),
+        }),
+      });
+
+      const data = await response.json();
+      console.log("Workout saved:", data);
+    } catch (err) {
+      console.error("Error saving workout:", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto">
@@ -69,7 +97,15 @@ function App() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {selectedWorkout === "home" &&
-            lifts.map((lift, index) => <DataCard key={index} {...lift} />)}
+            lifts.map((lift, index) => (
+              <DataCard
+                key={index}
+                {...lift}
+                onLogWorkout={(weight, sets, reps) =>
+                  logWorkout(lift.name, weight, sets, reps)
+                }
+              />
+            ))}
           {selectedWorkout === "Push" && (
             <>
               <DataCard key={0} {...lifts[0]} />

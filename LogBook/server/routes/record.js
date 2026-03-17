@@ -45,7 +45,7 @@ router.post("/", async (req, res) => {
         let { name, weight, reps, sets, date } = req.body;
 
         if (!name || !weight || !reps || !sets || !date) {
-            res.status(500).send("Missing required fields")
+            return res.status(500).send("Missing required fields")
         }
 
         let newLift = {
@@ -58,6 +58,8 @@ router.post("/", async (req, res) => {
 
         let collection = db.collection("lifts");
         let result = await collection.insertOne(newLift);
+
+        console.log("Inserted document:", result);
 
         res.status(201).json(result);
     } catch(err) {
@@ -74,13 +76,23 @@ router.patch("/:id", async (req, res) => {
             $set: {}
         };
 
-        if (req.body.name) updates.$set.name = req.body.name;
-        if (req.body.weight) updates.$set.weight = Number(req.body.weight);
-        if (req.body.reps) updates.$set.reps = Number(req.body.reps);
-        if (req.body.sets) updates.$set.sets = Number(req.body.sets);
-        if (req.body.date) updates.$set.date = new Date(req.body.date);
+        if (req.body.name !== undefined) {
+            updates.$set.name = req.body.name;
+        }
+        if (req.body.weight !== undefined) {
+            updates.$set.weight = Number(req.body.weight);
+        }
+        if (req.body.reps !== undefined) {
+            updates.$set.reps = Number(req.body.reps);
+        }
+        if (req.body.sets !== undefined) {
+            updates.$set.sets = Number(req.body.sets);
+        }
+        if (req.body.date !== undefined) {
+            updates.$set.date = new Date(req.body.date);
+        }
 
-        if(Object.keys(update.$set).length === 0) {
+        if(Object.keys(updates.$set).length === 0) {
             return res.status(400).send("No fields provided");
         }
 
@@ -91,7 +103,7 @@ router.patch("/:id", async (req, res) => {
             return res.status(404).send("Lift not found");
         }
 
-        res.status(201).json(result);
+        res.status(200).json(result);
     } catch(err) {
         console.error(err);
         res.status(500).send("Error updating lift");
@@ -109,7 +121,7 @@ router.delete("/:id", async (req, res) => {
             return res.status(404).send("Lift not found");
         }
 
-        res.status(201).json(result);
+        res.status(200).json(result);
     } catch(err) {
         console.error(err);
         res.status(500).send("Error deleting lift")
