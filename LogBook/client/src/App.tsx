@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import { Dumbbell } from "lucide-react";
@@ -20,35 +20,11 @@ function App() {
     { day: "Sat", workout: "Rest" },
   ];
 
-  const lifts = [
-    {
-      name: "Bench Press",
-      currentWeight: 185,
-      oldWeight: 185,
-      currentReps: 5,
-      oldReps: 4,
-      sets: 3,
-      lastWorkout: "3 days ago",
-    },
-    {
-      name: "Squat",
-      currentWeight: 245,
-      oldWeight: 225,
-      currentReps: 5,
-      oldReps: 10,
-      sets: 2,
-      lastWorkout: "4 days ago",
-    },
-    {
-      name: "Deadlift",
-      currentWeight: 225,
-      oldWeight: 225,
-      currentReps: 7,
-      oldReps: 5,
-      sets: 2,
-      lastWorkout: "4 days ago",
-    },
-  ];
+  const [lifts, setLifts] = useState([]);
+
+  useEffect(() => {
+    fetchLifts();
+  }, []);
 
   function handleChangePage(day: DayData) {
     setSelectedWorkout(day.workout ?? null);
@@ -71,16 +47,44 @@ function App() {
           weight: currentWeight,
           reps: currentReps,
           sets,
+          type: selectedWorkout,
           date: new Date().toISOString(),
         }),
       });
 
       const data = await response.json();
       console.log("Workout saved:", data);
+
+      fetchLifts();
     } catch (err) {
       console.error("Error saving workout:", err);
     }
   };
+
+  const fetchLifts = async () => {
+    try {
+      const response = await fetch("http://localhost:5050/records");
+      const data = await response.json();
+
+      console.log("Fetched lifts:", data);
+
+      setLifts(data);
+    } catch (err) {
+      console.error("Error fetching lifts", err);
+    }
+  };
+
+  const latestLifts = Object.values(
+    lifts.reduce((acc: any, lift: any) => {
+      const existing = acc[lift.name];
+
+      if (!existing || new Date(lift.date) > new Date(existing.date)) {
+        acc[lift.name] = lift;
+      }
+
+      return acc;
+    }, {})
+  );
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -96,21 +100,25 @@ function App() {
           <WeekCalandar week={week} onChangePage={handleChangePage} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {selectedWorkout === "home" &&
-            lifts.map((lift, index) => (
+          {latestLifts
+            .filter((lift: any) =>
+              selectedWorkout === "home" ? true : lift.type === selectedWorkout
+            )
+            .map((lift: any, index) => (
               <DataCard
                 key={index}
-                {...lift}
+                name={lift.name}
+                currentWeight={lift.weight}
+                oldWeight={lift.weight}
+                currentReps={lift.reps}
+                oldReps={lift.reps}
+                sets={lift.sets}
+                lastWorkout={"Just Now"}
                 onLogWorkout={(weight, sets, reps) =>
                   logWorkout(lift.name, weight, sets, reps)
                 }
               />
             ))}
-          {selectedWorkout === "Push" && (
-            <>
-              <DataCard key={0} {...lifts[0]} />
-            </>
-          )}
         </div>
       </div>
     </div>

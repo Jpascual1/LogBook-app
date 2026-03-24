@@ -44,7 +44,7 @@ router.post("/", async (req, res) => {
     try {
         let { name, weight, reps, sets, date } = req.body;
 
-        if (!name || !weight || !reps || !sets || !date) {
+        if (!name || !weight || !reps || !sets) {
             return res.status(500).send("Missing required fields")
         }
 
@@ -53,6 +53,7 @@ router.post("/", async (req, res) => {
             weight: Number(weight),
             reps: Number(reps),
             sets: Number(sets),
+            type: type || "home",
             date: date ? new Date(date) : new Date(),
         };
 
