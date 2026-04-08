@@ -6,6 +6,8 @@ import { AddLiftButton } from "../Components/AddLiftButton";
 import type { DayData } from "../Components/WeekCalandar";
 import "./App.css";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5050";
+
 function App() {
   const [selectedWorkout, setSelectedWorkout] = useState("home");
 
@@ -36,7 +38,7 @@ function App() {
     currentReps: number
   ) => {
     try {
-      const response = await fetch("http://localhost:5050/records", {
+      const response = await fetch(`${API_BASE_URL}/records`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -62,7 +64,7 @@ function App() {
 
   const fetchLifts = async () => {
     try {
-      const response = await fetch("http://localhost:5050/records");
+      const response = await fetch(`${API_BASE_URL}/records`);
       const data = await response.json();
 
       console.log("Fetched lifts:", data);
@@ -87,7 +89,7 @@ function App() {
     type: string;
   }) => {
     try {
-      const response = await fetch("http://localhost:5050/records", {
+      const response = await fetch(`${API_BASE_URL}/records`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -112,7 +114,7 @@ function App() {
 
   const editLift = async (id: string, name: string, type: string) => {
     try {
-      const response = await fetch(`http://localhost:5050/records/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/records/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
