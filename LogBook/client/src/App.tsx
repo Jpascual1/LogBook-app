@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
 import { Dumbbell } from "lucide-react";
 import { DataCard } from "../Components/DataCard";
 import { WeekCalandar } from "../Components/WeekCalandar";
+import { AddLiftButton } from "../Components/AddLiftButton";
 import type { DayData } from "../Components/WeekCalandar";
 import "./App.css";
 
@@ -27,7 +26,7 @@ function App() {
   }, []);
 
   function handleChangePage(day: DayData) {
-    setSelectedWorkout(day.workout ?? null);
+    setSelectedWorkout(day.workout ?? "home");
   }
 
   const logWorkout = async (
@@ -47,7 +46,7 @@ function App() {
           weight: currentWeight,
           reps: currentReps,
           sets,
-          type: selectedWorkout,
+          type: selectedWorkout.toLowerCase(),
           date: new Date().toISOString(),
         }),
       });
@@ -74,17 +73,92 @@ function App() {
     }
   };
 
-  const latestLifts = Object.values(
-    lifts.reduce((acc: any, lift: any) => {
-      const existing = acc[lift.name];
+  const addLift = async ({
+    name,
+    weight,
+    reps,
+    sets,
+    type,
+  }: {
+    name: string;
+    weight: number;
+    reps: number;
+    sets: number;
+    type: string;
+  }) => {
+    try {
+      const response = await fetch("http://localhost:5050/records", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          weight,
+          reps,
+          sets,
+          type,
+        }),
+      });
 
-      if (!existing || new Date(lift.date) > new Date(existing.date)) {
-        acc[lift.name] = lift;
-      }
+      const data = await response.json();
+      console.log("New lift saved:", data);
+      fetchLifts();
+    } catch (err) {
+      console.error("Error adding lift:", err);
+      throw err;
+    }
+  };
 
-      return acc;
-    }, {})
-  );
+  const editLift = async (id: string, name: string, type: string) => {
+    try {
+      const response = await fetch(`http://localhost:5050/records/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          type,
+        }),
+      });
+
+      const data = await response.json();
+      console.log("Lift updated:", data);
+      fetchLifts();
+    } catch (err) {
+      console.error("Error editing lift:", err);
+      throw err;
+    }
+  };
+
+  const groupedLifts = lifts.reduce((acc: any, lift: any) => {
+    if (!acc[lift.name]) {
+      acc[lift.name] = [];
+    }
+
+    acc[lift.name].push(lift);
+    return acc;
+  }, {});
+
+  const latestLifts = Object.values(groupedLifts).map((liftArray: any) => {
+    const sorted = liftArray.sort(
+      (a: any, b: any) =>
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    const current = sorted[0];
+    const previous = sorted[1];
+
+    return {
+      ...current,
+      _id: current._id,
+      oldWeight: previous ? previous.weight : current.weight,
+      oldReps: previous ? previous.reps : current.reps,
+    };
+  });
+
+  const normalizedSelectedWorkout = selectedWorkout.toLowerCase();
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -99,24 +173,29 @@ function App() {
         <div className="mb-10 flex justify-center">
           <WeekCalandar week={week} onChangePage={handleChangePage} />
         </div>
+        <AddLiftButton defaultType={selectedWorkout} onSubmit={addLift} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {latestLifts
             .filter((lift: any) =>
-              selectedWorkout === "home" ? true : lift.type === selectedWorkout
+              normalizedSelectedWorkout === "home"
+                ? true
+                : (lift.type ?? "").toLowerCase() === normalizedSelectedWorkout
             )
             .map((lift: any, index) => (
               <DataCard
-                key={index}
+                key={lift._id ?? index}
+                id={lift._id}
                 name={lift.name}
+                type={lift.type}
                 currentWeight={lift.weight}
-                oldWeight={lift.weight}
+                oldWeight={lift.oldWeight}
                 currentReps={lift.reps}
-                oldReps={lift.reps}
                 sets={lift.sets}
                 lastWorkout={"Just Now"}
                 onLogWorkout={(weight, sets, reps) =>
                   logWorkout(lift.name, weight, sets, reps)
                 }
+                onEditLift={(id, name, type) => editLift(id, name, type)}
               />
             ))}
         </div>

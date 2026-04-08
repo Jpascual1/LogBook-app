@@ -1,33 +1,42 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardTitle, CardHeader } from "./ui/card";
 
 interface DataCardProps {
+  id: string;
   name: string;
+  type: string;
   currentWeight: number;
   oldWeight: number;
   currentReps: number;
-  oldReps: number;
   sets: number;
   lastWorkout: string;
   onLogWorkout: (weight: number, sets: number, reps: number) => void;
+  onEditLift: (id: string, name: string, type: string) => Promise<void>;
 }
 
 export function DataCard({
+  id,
   name,
+  type,
   currentWeight,
   oldWeight,
   currentReps,
-  oldReps,
   sets,
   lastWorkout,
   onLogWorkout,
+  onEditLift,
 }: DataCardProps) {
   const weightDif = currentWeight - oldWeight;
 
   const [showLogForm, setShowLogForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [newWeight, setNewWeight] = useState(currentWeight.toString());
   const [newSets, setNewSets] = useState(sets.toString());
   const [newReps, setNewReps] = useState(currentReps.toString());
+  const [editedName, setEditedName] = useState(name);
+  const [editedType, setEditedType] = useState(type ?? "home");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editError, setEditError] = useState("");
 
   const handleSave = () => {
     onLogWorkout(
@@ -38,15 +47,93 @@ export function DataCard({
     setShowLogForm(false);
   };
 
+  const handleEditSave = async () => {
+    if (!editedName.trim() || !editedType.trim()) {
+      setEditError("Name and type are required.");
+      return;
+    }
+
+    try {
+      setIsEditing(true);
+      setEditError("");
+      await onEditLift(id, editedName.trim(), editedType.trim().toLowerCase());
+      setShowEditForm(false);
+    } catch (err) {
+      console.error("Error updating lift:", err);
+      setEditError("Failed to update lift.");
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    if (isEditing) return;
+    setEditedName(name);
+    setEditedType(type ?? "home");
+    setEditError("");
+    setShowEditForm(false);
+  };
+
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>{name}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setEditedName(name);
+              setEditedType(type ?? "home");
+              setEditError("");
+              setShowEditForm((prev) => !prev);
+            }}
+            className="text-sm px-3 py-1 border rounded-md hover:bg-accent"
+          >
+            {showEditForm ? "Close" : "Edit"}
+          </button>
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
+          {showEditForm && (
+            <div className="space-y-2 p-3 border rounded-md bg-muted/30">
+              <p className="text-sm font-medium">Edit Lift</p>
+              <input
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                placeholder="Lift name"
+                className="w-full px-2 py-1 border rounded text-sm"
+              />
+              <input
+                type="text"
+                value={editedType}
+                onChange={(e) => setEditedType(e.target.value)}
+                placeholder="Type"
+                className="w-full px-2 py-1 border rounded text-sm"
+              />
+              {editError && <p className="text-sm text-red-600">{editError}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleEditSave}
+                  disabled={isEditing}
+                  className="px-3 py-1 bg-green-600 text-white rounded-md text-sm disabled:opacity-60"
+                >
+                  {isEditing ? "Saving..." : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  disabled={isEditing}
+                  className="px-3 py-1 border rounded-md text-sm disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-between items-end">
             <div>
               <p className="text-muted-foreground">Current</p>
@@ -77,10 +164,10 @@ export function DataCard({
           {weightDif !== 0 && (
             <div
               className={`text-sm ${
-                weightDif ? "text-green-600" : "text-red-600"
+                weightDif > 0 ? "text-green-600" : "text-red-600"
               }`}
             >
-              {weightDif ? "+" : ""}
+              {weightDif > 0 ? "+" : ""}
               {weightDif} lbs from last time
             </div>
           )}

@@ -42,7 +42,7 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
     try {
-        let { name, weight, reps, sets, date } = req.body;
+        let { name, weight, reps, sets, type, date } = req.body;
 
         if (!name || !weight || !reps || !sets) {
             return res.status(500).send("Missing required fields")
@@ -91,6 +91,9 @@ router.patch("/:id", async (req, res) => {
         }
         if (req.body.date !== undefined) {
             updates.$set.date = new Date(req.body.date);
+        }
+        if (req.body.type !== undefined) {
+            updates.$set.type = req.body.type;
         }
 
         if(Object.keys(updates.$set).length === 0) {
