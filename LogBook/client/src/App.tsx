@@ -38,19 +38,24 @@ function App() {
     currentReps: number
   ) => {
     try {
+      const onHomeView = selectedWorkout.toLowerCase() === "home";
+      const payload: Record<string, unknown> = {
+        name,
+        weight: currentWeight,
+        reps: currentReps,
+        sets,
+        date: new Date().toISOString(),
+      };
+      if (!onHomeView) {
+        payload.type = selectedWorkout.toLowerCase();
+      }
+
       const response = await fetch(`${API_BASE_URL}/records`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name,
-          weight: currentWeight,
-          reps: currentReps,
-          sets,
-          type: selectedWorkout.toLowerCase(),
-          date: new Date().toISOString(),
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
