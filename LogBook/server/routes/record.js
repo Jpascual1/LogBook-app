@@ -48,16 +48,30 @@ router.post("/", async (req, res) => {
             return res.status(500).send("Missing required fields")
         }
 
+        const typeProvided = type != null && String(type).trim() !== "";
+        let collection = db.collection("lifts");
+
+        let resolvedType;
+        if (typeProvided) {
+            resolvedType = String(type).trim();
+        } else {
+            const previous = await collection.findOne(
+                { name },
+                { sort: { date: -1 }, projection: { type: 1 } }
+            );
+            resolvedType =
+                previous && previous.type ? previous.type : "home";
+        }
+
         let newLift = {
             name,
             weight: Number(weight),
             reps: Number(reps),
             sets: Number(sets),
-            type: type || "home",
+            type: resolvedType,
             date: date ? new Date(date) : new Date(),
         };
 
-        let collection = db.collection("lifts");
         let result = await collection.insertOne(newLift);
 
         console.log("Inserted document:", result);
