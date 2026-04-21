@@ -1,14 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dumbbell } from "lucide-react";
 import { DataCard } from "../Components/DataCard";
 import { WeekCalandar } from "../Components/WeekCalandar";
 import { AddLiftButton } from "../Components/AddLiftButton";
 import type { DayData } from "../Components/WeekCalandar";
+import {
+  Show,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+  useAuth,
+} from "@clerk/react";
 import "./App.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5050";
 
 function App() {
+  const { isSignedIn, getToken } = useAuth();
   const [selectedWorkout, setSelectedWorkout] = useState("home");
 
   const week = [
@@ -21,11 +29,40 @@ function App() {
     { day: "Sat", workout: "Rest" },
   ];
 
-  const [lifts, setLifts] = useState([]);
+  const [lifts, setLifts] = useState<any[]>([]);
+
+  const authHeaders = useCallback(async () => {
+    const token = await getToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+  }, [getToken]);
+
+  const fetchLifts = useCallback(async () => {
+    if (!isSignedIn) {
+      setLifts([]);
+      return;
+    }
+    try {
+      const auth = await authHeaders();
+      const response = await fetch(`${API_BASE_URL}/records`, {
+        headers: auth,
+      });
+      const data = await response.json();
+
+      console.log("Fetched lifts:", data);
+
+      setLifts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error fetching lifts", err);
+    }
+  }, [isSignedIn, authHeaders]);
 
   useEffect(() => {
     fetchLifts();
-  }, []);
+  }, [fetchLifts]);
 
   function handleChangePage(day: DayData) {
     setSelectedWorkout(day.workout ?? "home");
@@ -37,6 +74,7 @@ function App() {
     sets: number,
     currentReps: number
   ) => {
+    if (!isSignedIn) return;
     try {
       const onHomeView = selectedWorkout.toLowerCase() === "home";
       const payload: Record<string, unknown> = {
@@ -50,10 +88,12 @@ function App() {
         payload.type = selectedWorkout.toLowerCase();
       }
 
+      const auth = await authHeaders();
       const response = await fetch(`${API_BASE_URL}/records`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...auth,
         },
         body: JSON.stringify(payload),
       });
@@ -64,19 +104,6 @@ function App() {
       fetchLifts();
     } catch (err) {
       console.error("Error saving workout:", err);
-    }
-  };
-
-  const fetchLifts = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/records`);
-      const data = await response.json();
-
-      console.log("Fetched lifts:", data);
-
-      setLifts(data);
-    } catch (err) {
-      console.error("Error fetching lifts", err);
     }
   };
 
@@ -93,11 +120,14 @@ function App() {
     sets: number;
     type: string;
   }) => {
+    if (!isSignedIn) return;
     try {
+      const auth = await authHeaders();
       const response = await fetch(`${API_BASE_URL}/records`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...auth,
         },
         body: JSON.stringify({
           name,
@@ -118,11 +148,14 @@ function App() {
   };
 
   const editLift = async (id: string, name: string, type: string) => {
+    if (!isSignedIn) return;
     try {
+      const auth = await authHeaders();
       const response = await fetch(`${API_BASE_URL}/records/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          ...auth,
         },
         body: JSON.stringify({
           name,
@@ -170,17 +203,30 @@ function App() {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto">
-        <div
-          className="mb-8 flex items-center gap-3"
-          onClick={() => setSelectedWorkout("home")}
-        >
-          <Dumbbell className="h-8 w-8" />
-          <h1>Workout Logbook</h1>
+        <div className="mb-8 flex items-center justify-between gap-3">
+          <div
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => setSelectedWorkout("home")}
+          >
+            <Dumbbell className="h-8 w-8" />
+            <h1>Workout Logbook</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Show when="signed-out">
+              <SignInButton />
+              <SignUpButton />
+            </Show>
+            <Show when="signed-in">
+              <UserButton />
+            </Show>
+          </div>
         </div>
         <div className="mb-10 flex justify-center">
           <WeekCalandar week={week} onChangePage={handleChangePage} />
         </div>
-        <AddLiftButton defaultType={selectedWorkout} onSubmit={addLift} />
+        <Show when="signed-in">
+          <AddLiftButton defaultType={selectedWorkout} onSubmit={addLift} />
+        </Show>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {latestLifts
             .filter((lift: any) =>

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@clerk/express": "^2.1.5",
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "mongodb": "^7.0.0"

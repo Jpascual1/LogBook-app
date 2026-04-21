@@ -1,14 +1,23 @@
 import express from "express";
-import db from "../db/connection.js"
+import db from "../db/connection.js";
 import { ObjectId } from "mongodb";
-
+import { getAuth } from "@clerk/express";
 
 const router = express.Router();
+
+router.use((req, res, next) => {
+    const { userId } = getAuth(req);
+    if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
+    res.locals.userId = userId;
+    next();
+});
 
 router.get("/", async (req, res) => {
     try {
         const { workout, date } = req.query;
-        const query = {};
+        const query = { userId: res.locals.userId };
 
         if (workout) query.workout = workout;
         if (date) query.date = new Date(date);
@@ -17,7 +26,7 @@ router.get("/", async (req, res) => {
         const results = await collection.find(query).toArray();
 
         res.status(200).json(results);
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         res.status(500).send("Error fetching lifts");
     }
@@ -26,17 +35,20 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
     try {
         let collection = db.collection("lifts");
-        let query = { _id: new ObjectId(req.params.id) };
+        let query = {
+            _id: new ObjectId(req.params.id),
+            userId: res.locals.userId,
+        };
         let result = await collection.findOne(query);
 
-        if(!result) {
+        if (!result) {
             return res.status(404).send("Not Found");
         }
 
         res.status(200).json(result);
-    } catch(err) {
+    } catch (err) {
         console.error(err);
-        res.status(500).send("Invalid ID")
+        res.status(500).send("Invalid ID");
     }
 });
 
@@ -45,18 +57,19 @@ router.post("/", async (req, res) => {
         let { name, weight, reps, sets, type, date } = req.body;
 
         if (!name || !weight || !reps || !sets) {
-            return res.status(500).send("Missing required fields")
+            return res.status(500).send("Missing required fields");
         }
 
         const typeProvided = type != null && String(type).trim() !== "";
         let collection = db.collection("lifts");
+        const userId = res.locals.userId;
 
         let resolvedType;
         if (typeProvided) {
             resolvedType = String(type).trim();
         } else {
             const previous = await collection.findOne(
-                { name },
+                { name, userId },
                 { sort: { date: -1 }, projection: { type: 1 } }
             );
             resolvedType =
@@ -69,6 +82,7 @@ router.post("/", async (req, res) => {
             reps: Number(reps),
             sets: Number(sets),
             type: resolvedType,
+            userId,
             date: date ? new Date(date) : new Date(),
         };
 
@@ -77,7 +91,7 @@ router.post("/", async (req, res) => {
         console.log("Inserted document:", result);
 
         res.status(201).json(result);
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         res.status(500).send("Error adding lift");
     }
@@ -85,10 +99,13 @@ router.post("/", async (req, res) => {
 
 router.patch("/:id", async (req, res) => {
     try {
-        let query = { _id: new ObjectId(req.params.id) };
+        let query = {
+            _id: new ObjectId(req.params.id),
+            userId: res.locals.userId,
+        };
 
         let updates = {
-            $set: {}
+            $set: {},
         };
 
         if (req.body.name !== undefined) {
@@ -110,19 +127,19 @@ router.patch("/:id", async (req, res) => {
             updates.$set.type = req.body.type;
         }
 
-        if(Object.keys(updates.$set).length === 0) {
+        if (Object.keys(updates.$set).length === 0) {
             return res.status(400).send("No fields provided");
         }
 
         let collection = db.collection("lifts");
         let result = await collection.updateOne(query, updates);
 
-        if(result.matchedCount === 0) {
+        if (result.matchedCount === 0) {
             return res.status(404).send("Lift not found");
         }
 
         res.status(200).json(result);
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         res.status(500).send("Error updating lift");
     }
@@ -130,19 +147,22 @@ router.patch("/:id", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
     try {
-        let query = { _id: new ObjectId(req.params.id) };
+        let query = {
+            _id: new ObjectId(req.params.id),
+            userId: res.locals.userId,
+        };
 
         let collection = db.collection("lifts");
         let result = await collection.deleteOne(query);
 
-        if(result.deletedCount === 0) {
+        if (result.deletedCount === 0) {
             return res.status(404).send("Lift not found");
         }
 
         res.status(200).json(result);
-    } catch(err) {
+    } catch (err) {
         console.error(err);
-        res.status(500).send("Error deleting lift")
+        res.status(500).send("Error deleting lift");
     }
 });
 
