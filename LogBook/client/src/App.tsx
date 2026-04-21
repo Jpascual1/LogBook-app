@@ -5,7 +5,6 @@ import { WeekCalandar } from "../Components/WeekCalandar";
 import { AddLiftButton } from "../Components/AddLiftButton";
 import type { DayData } from "../Components/WeekCalandar";
 import {
-  Show,
   SignInButton,
   SignUpButton,
   UserButton,
@@ -16,7 +15,7 @@ import "./App.css";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5050";
 
 function App() {
-  const { isSignedIn, getToken } = useAuth();
+  const { isSignedIn, isLoaded, getToken } = useAuth();
   const [selectedWorkout, setSelectedWorkout] = useState("home");
 
   const week = [
@@ -41,7 +40,7 @@ function App() {
   }, [getToken]);
 
   const fetchLifts = useCallback(async () => {
-    if (!isSignedIn) {
+    if (isSignedIn !== true) {
       setLifts([]);
       return;
     }
@@ -74,7 +73,7 @@ function App() {
     sets: number,
     currentReps: number
   ) => {
-    if (!isSignedIn) return;
+    if (isSignedIn !== true) return;
     try {
       const onHomeView = selectedWorkout.toLowerCase() === "home";
       const payload: Record<string, unknown> = {
@@ -120,7 +119,7 @@ function App() {
     sets: number;
     type: string;
   }) => {
-    if (!isSignedIn) return;
+    if (isSignedIn !== true) return;
     try {
       const auth = await authHeaders();
       const response = await fetch(`${API_BASE_URL}/records`, {
@@ -148,7 +147,7 @@ function App() {
   };
 
   const editLift = async (id: string, name: string, type: string) => {
-    if (!isSignedIn) return;
+    if (isSignedIn !== true) return;
     try {
       const auth = await authHeaders();
       const response = await fetch(`${API_BASE_URL}/records/${id}`, {
@@ -211,22 +210,39 @@ function App() {
             <Dumbbell className="h-8 w-8" />
             <h1>Workout Logbook</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Show when="signed-out">
-              <SignInButton />
-              <SignUpButton />
-            </Show>
-            <Show when="signed-in">
+          <div className="flex min-h-10 items-center justify-end gap-2">
+            {!isLoaded ? (
+              <span className="text-sm text-muted-foreground">Loading…</span>
+            ) : isSignedIn !== true ? (
+              <>
+                <SignInButton mode="modal">
+                  <button
+                    type="button"
+                    className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent"
+                  >
+                    Sign in
+                  </button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <button
+                    type="button"
+                    className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    Sign up
+                  </button>
+                </SignUpButton>
+              </>
+            ) : (
               <UserButton />
-            </Show>
+            )}
           </div>
         </div>
         <div className="mb-10 flex justify-center">
           <WeekCalandar week={week} onChangePage={handleChangePage} />
         </div>
-        <Show when="signed-in">
+        {isLoaded && isSignedIn === true ? (
           <AddLiftButton defaultType={selectedWorkout} onSubmit={addLift} />
-        </Show>
+        ) : null}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {latestLifts
             .filter((lift: any) =>
