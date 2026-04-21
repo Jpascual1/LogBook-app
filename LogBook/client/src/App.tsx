@@ -14,6 +14,22 @@ import "./App.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5050";
 
+async function parseJsonResponse(response: Response) {
+  const text = await response.text();
+  if (!response.ok) {
+    let message = text || `${response.status} ${response.statusText}`;
+    try {
+      const parsed = JSON.parse(text) as { error?: string; message?: string };
+      message = parsed.error || parsed.message || message;
+    } catch {
+      /* plain-text error body */
+    }
+    throw new Error(message);
+  }
+  if (!text) return null;
+  return JSON.parse(text) as unknown;
+}
+
 function App() {
   const { isSignedIn, isLoaded, getToken } = useAuth();
   const [selectedWorkout, setSelectedWorkout] = useState("home");
@@ -49,7 +65,7 @@ function App() {
       const response = await fetch(`${API_BASE_URL}/records`, {
         headers: auth,
       });
-      const data = await response.json();
+      const data = await parseJsonResponse(response);
 
       console.log("Fetched lifts:", data);
 
@@ -97,7 +113,7 @@ function App() {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const data = await parseJsonResponse(response);
       console.log("Workout saved:", data);
 
       fetchLifts();
@@ -137,7 +153,7 @@ function App() {
         }),
       });
 
-      const data = await response.json();
+      const data = await parseJsonResponse(response);
       console.log("New lift saved:", data);
       fetchLifts();
     } catch (err) {
@@ -162,7 +178,7 @@ function App() {
         }),
       });
 
-      const data = await response.json();
+      const data = await parseJsonResponse(response);
       console.log("Lift updated:", data);
       fetchLifts();
     } catch (err) {

@@ -28,7 +28,7 @@ router.get("/", async (req, res) => {
         res.status(200).json(results);
     } catch (err) {
         console.error(err);
-        res.status(500).send("Error fetching lifts");
+        res.status(500).json({ error: "Error fetching lifts" });
     }
 });
 
@@ -42,13 +42,13 @@ router.get("/:id", async (req, res) => {
         let result = await collection.findOne(query);
 
         if (!result) {
-            return res.status(404).send("Not Found");
+            return res.status(404).json({ error: "Not Found" });
         }
 
         res.status(200).json(result);
     } catch (err) {
         console.error(err);
-        res.status(500).send("Invalid ID");
+        res.status(500).json({ error: "Invalid ID" });
     }
 });
 
@@ -56,8 +56,12 @@ router.post("/", async (req, res) => {
     try {
         let { name, weight, reps, sets, type, date } = req.body;
 
-        if (!name || !weight || !reps || !sets) {
-            return res.status(500).send("Missing required fields");
+        const nameOk = typeof name === "string" && name.trim() !== "";
+        const w = Number(weight);
+        const r = Number(reps);
+        const s = Number(sets);
+        if (!nameOk || Number.isNaN(w) || Number.isNaN(r) || Number.isNaN(s)) {
+            return res.status(400).json({ error: "Missing or invalid fields" });
         }
 
         const typeProvided = type != null && String(type).trim() !== "";
@@ -69,7 +73,7 @@ router.post("/", async (req, res) => {
             resolvedType = String(type).trim();
         } else {
             const previous = await collection.findOne(
-                { name, userId },
+                { name: name.trim(), userId },
                 { sort: { date: -1 }, projection: { type: 1 } }
             );
             resolvedType =
@@ -77,10 +81,10 @@ router.post("/", async (req, res) => {
         }
 
         let newLift = {
-            name,
-            weight: Number(weight),
-            reps: Number(reps),
-            sets: Number(sets),
+            name: name.trim(),
+            weight: w,
+            reps: r,
+            sets: s,
             type: resolvedType,
             userId,
             date: date ? new Date(date) : new Date(),
@@ -93,7 +97,7 @@ router.post("/", async (req, res) => {
         res.status(201).json(result);
     } catch (err) {
         console.error(err);
-        res.status(500).send("Error adding lift");
+        res.status(500).json({ error: "Error adding lift" });
     }
 });
 
@@ -128,20 +132,20 @@ router.patch("/:id", async (req, res) => {
         }
 
         if (Object.keys(updates.$set).length === 0) {
-            return res.status(400).send("No fields provided");
+            return res.status(400).json({ error: "No fields provided" });
         }
 
         let collection = db.collection("lifts");
         let result = await collection.updateOne(query, updates);
 
         if (result.matchedCount === 0) {
-            return res.status(404).send("Lift not found");
+            return res.status(404).json({ error: "Lift not found" });
         }
 
         res.status(200).json(result);
     } catch (err) {
         console.error(err);
-        res.status(500).send("Error updating lift");
+        res.status(500).json({ error: "Error updating lift" });
     }
 });
 
@@ -156,13 +160,13 @@ router.delete("/:id", async (req, res) => {
         let result = await collection.deleteOne(query);
 
         if (result.deletedCount === 0) {
-            return res.status(404).send("Lift not found");
+            return res.status(404).json({ error: "Lift not found" });
         }
 
         res.status(200).json(result);
     } catch (err) {
         console.error(err);
-        res.status(500).send("Error deleting lift");
+        res.status(500).json({ error: "Error deleting lift" });
     }
 });
 

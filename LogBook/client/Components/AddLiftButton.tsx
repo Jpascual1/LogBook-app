@@ -77,7 +77,11 @@ export function AddLiftButton({ defaultType, onSubmit }: AddLiftButtonProps) {
       resetForm();
     } catch (err) {
       console.error("Error adding lift:", err);
-      setError("Failed to add lift. Please try again.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to add lift. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
