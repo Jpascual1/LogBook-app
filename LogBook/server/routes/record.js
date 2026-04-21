@@ -6,6 +6,9 @@ import { getAuth } from "@clerk/express";
 const router = express.Router();
 
 router.use((req, res, next) => {
+    if (req.method === "OPTIONS") {
+        return res.sendStatus(204);
+    }
     const { userId } = getAuth(req);
     if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });

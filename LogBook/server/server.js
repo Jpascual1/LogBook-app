@@ -11,24 +11,44 @@ const isProduction = process.env.NODE_ENV === "production";
 
 const allowedOrigins = [
   ...(clientOrigin ? [clientOrigin] : []),
-  ...(!isProduction ? ["http://localhost:5173"] : []),
+  ...(!isProduction
+    ? ["http://localhost:5173", "http://127.0.0.1:5173"]
+    : []),
 ];
 
 app.use(
   cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error("Not allowed by CORS"));
-    },
+    origin:
+      allowedOrigins.length > 0
+        ? allowedOrigins
+        : !isProduction
+          ? true
+          : false,
     allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS", "HEAD"],
   })
 );
 app.use(express.json());
-app.use(clerkMiddleware());
+
+const clerkMw = clerkMiddleware();
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+  return clerkMw(req, res, next);
+});
+
 app.use("/records", records);
+
+app.use((err, req, res, _next) => {
+  console.error(err);
+  if (res.headersSent) {
+    return;
+  }
+  res.status(500).json({
+    error: err instanceof Error ? err.message : "Internal Server Error",
+  });
+});
 
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
